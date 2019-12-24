@@ -11,7 +11,7 @@ type slicesrc struct {
 	pos   int
 }
 
-func (src *slicesrc) read() (int, error) {
+func (src *slicesrc) Read() (int, error) {
 	if src.pos > len(src.input)-1 {
 		return -1, fmt.Errorf("Ran out of input at %v", src.pos)
 	}
@@ -24,7 +24,7 @@ type slicedest struct {
 	output []int
 }
 
-func (dest *slicedest) write(i int) error {
+func (dest *slicedest) Write(i int) error {
 	dest.output = append(dest.output, i)
 	return nil
 }
@@ -126,7 +126,7 @@ func assertRunFullData(t *testing.T, input, expected []int) {
 func assertRunData(t *testing.T, data, input, expected []int) {
 	in := &slicesrc{input, 0}
 	out := &slicedest{nil}
-	err := run(data, in, out)
+	err := Run(data, in, out)
 	if err != nil {
 		t.Fatalf("Problem running data: %v", err)
 	}

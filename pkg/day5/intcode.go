@@ -25,15 +25,18 @@ type instruction struct {
 	arguments []int
 }
 
-type intsrc interface {
-	read() (int, error)
+// Intsrc reads integers
+type Intsrc interface {
+	Read() (int, error)
 }
 
-type intdest interface {
-	write(i int) error
+// Intdest writes integers
+type Intdest interface {
+	Write(i int) error
 }
 
-func run(data []int, in intsrc, out intdest) error {
+// Run runs the provided data getting input from in and outputting to out
+func Run(data []int, in Intsrc, out Intdest) error {
 	ptr := 0
 	for ptr < len(data) {
 		inst, err := parseInstruction(ptr, data)
@@ -57,7 +60,7 @@ func run(data []int, in intsrc, out intdest) error {
 	return fmt.Errorf("Ran out of data before termination")
 }
 
-func execute(data []int, inst *instruction, in intsrc, out intdest) (int, error) {
+func execute(data []int, inst *instruction, in Intsrc, out Intdest) (int, error) {
 	rval := 0
 	switch inst.opcode {
 	case add:
@@ -73,7 +76,7 @@ func execute(data []int, inst *instruction, in intsrc, out intdest) (int, error)
 		fmt.Printf("%v * %v -> %v\n", arg1, arg2, arg3)
 		data[arg3] = arg1 * arg2
 	case read:
-		i, err := in.read()
+		i, err := in.Read()
 		if err != nil {
 			return 0, err
 		}
@@ -83,7 +86,7 @@ func execute(data []int, inst *instruction, in intsrc, out intdest) (int, error)
 	case write:
 		arg := getVal(0, inst, data)
 		fmt.Printf("write %v\n", arg)
-		err := out.write(arg)
+		err := out.Write(arg)
 		if err != nil {
 			return 0, err
 		}
@@ -216,7 +219,12 @@ func parseArgs(ptr int, data []int, argCount int, modeRunes []rune) (modes, args
 }
 
 func readData() ([]int, error) {
-	content, err := ioutil.ReadFile("../../resources/day5/input.txt")
+	return ReadDataFile("../../resources/day5/input.txt")
+}
+
+//ReadDataFile reads data from a given file path
+func ReadDataFile(fname string) ([]int, error) {
+	content, err := ioutil.ReadFile(fname)
 	if err != nil {
 		return nil, err
 	}
