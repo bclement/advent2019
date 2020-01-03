@@ -22,15 +22,16 @@ const (
 
 // Computer contains the memory and IO for an intcode computer
 type Computer struct {
-	data []int64
-	base int
-	in   Intsrc
-	out  Intdest
+	data  []int64
+	base  int
+	in    Intsrc
+	out   Intdest
+	debug bool
 }
 
 // NewComputer creates a new computer and returns a pointer to it
-func NewComputer(data []int64, in Intsrc, out Intdest) *Computer {
-	return &Computer{data, 0, in, out}
+func NewComputer(data []int64, in Intsrc, out Intdest, debug bool) *Computer {
+	return &Computer{data, 0, in, out, debug}
 }
 
 type instruction struct {
@@ -77,6 +78,13 @@ func NewSliceIO(input []int64) *SliceIO {
 	return &SliceIO{input, 0, nil}
 }
 
+// RunAsync should be ran as a gorutine and passes an error to the
+// channel on error or nil otherwise
+func (comp *Computer) RunAsync(errc chan error) {
+	rval := comp.Run()
+	errc <- rval
+}
+
 // Run runs the provided data getting input from in and outputting to out
 func (comp *Computer) Run() error {
 	ptr := 0
@@ -109,25 +117,36 @@ func (comp *Computer) execute(inst *instruction) (int, error) {
 		arg1 := comp.getVal(0, inst)
 		arg2 := comp.getVal(1, inst)
 		arg3 := comp.getIndex(2, inst)
-		fmt.Printf("%v + %v -> %v\n", arg1, arg2, arg3)
+		if comp.debug {
+			fmt.Printf("%v + %v -> %v\n", arg1, arg2, arg3)
+		}
 		comp.setValue(arg3, arg1+arg2)
 	case mult:
 		arg1 := comp.getVal(0, inst)
 		arg2 := comp.getVal(1, inst)
 		arg3 := comp.getIndex(2, inst)
-		fmt.Printf("%v * %v -> %v\n", arg1, arg2, arg3)
+		if comp.debug {
+			fmt.Printf("%v * %v -> %v\n", arg1, arg2, arg3)
+		}
 		comp.setValue(arg3, arg1*arg2)
 	case read:
+		if comp.debug {
+			fmt.Printf("waiting to read\n")
+		}
 		i, err := comp.in.Read()
 		if err != nil {
 			return 0, err
 		}
 		index := comp.getIndex(0, inst)
-		fmt.Printf("read %v -> %v\n", i, index)
+		if comp.debug {
+			fmt.Printf("read %v -> %v\n", i, index)
+		}
 		comp.setValue(index, i)
 	case write:
 		arg := comp.getVal(0, inst)
-		fmt.Printf("write %v\n", arg)
+		if comp.debug {
+			fmt.Printf("write %v\n", arg)
+		}
 		err := comp.out.Write(arg)
 		if err != nil {
 			return 0, err
@@ -136,29 +155,41 @@ func (comp *Computer) execute(inst *instruction) (int, error) {
 		arg1 := comp.getVal(0, inst)
 		arg2 := comp.getVal(1, inst)
 		if arg1 != 0 {
-			fmt.Printf("%v != 0, jumping to %v\n", arg1, arg2)
+			if comp.debug {
+				fmt.Printf("%v != 0, jumping to %v\n", arg1, arg2)
+			}
 			rval = int(arg2)
 		} else {
-			fmt.Printf("not jumping\n")
+			if comp.debug {
+				fmt.Printf("not jumping\n")
+			}
 		}
 	case jumpIfFalse:
 		arg1 := comp.getVal(0, inst)
 		arg2 := comp.getVal(1, inst)
 		if arg1 == 0 {
-			fmt.Printf("%v == 0, jumping to %v\n", arg1, arg2)
+			if comp.debug {
+				fmt.Printf("%v == 0, jumping to %v\n", arg1, arg2)
+			}
 			rval = int(arg2)
 		} else {
-			fmt.Printf("not jumping\n")
+			if comp.debug {
+				fmt.Printf("not jumping\n")
+			}
 		}
 	case lessThan:
 		arg1 := comp.getVal(0, inst)
 		arg2 := comp.getVal(1, inst)
 		arg3 := comp.getIndex(2, inst)
 		if arg1 < arg2 {
-			fmt.Printf("%v < %v, storing 1 in %v\n", arg1, arg2, arg3)
+			if comp.debug {
+				fmt.Printf("%v < %v, storing 1 in %v\n", arg1, arg2, arg3)
+			}
 			comp.setValue(arg3, 1)
 		} else {
-			fmt.Printf("%v >= %v, storing 0 in %v\n", arg1, arg2, arg3)
+			if comp.debug {
+				fmt.Printf("%v >= %v, storing 0 in %v\n", arg1, arg2, arg3)
+			}
 			comp.setValue(arg3, 0)
 		}
 	case equals:
@@ -166,17 +197,25 @@ func (comp *Computer) execute(inst *instruction) (int, error) {
 		arg2 := comp.getVal(1, inst)
 		arg3 := comp.getIndex(2, inst)
 		if arg1 == arg2 {
-			fmt.Printf("%v == %v, storing 1 in %v\n", arg1, arg2, arg3)
+			if comp.debug {
+				fmt.Printf("%v == %v, storing 1 in %v\n", arg1, arg2, arg3)
+			}
 			comp.setValue(arg3, 1)
 		} else {
-			fmt.Printf("%v != %v, storing 0 in %v\n", arg1, arg2, arg3)
+			if comp.debug {
+				fmt.Printf("%v != %v, storing 0 in %v\n", arg1, arg2, arg3)
+			}
 			comp.setValue(arg3, 0)
 		}
 	case offsetBase:
 		arg1 := comp.getVal(0, inst)
-		fmt.Printf("adding %v to base %v\n", arg1, comp.base)
+		if comp.debug {
+			fmt.Printf("adding %v to base %v\n", arg1, comp.base)
+		}
 		comp.base += int(arg1)
-		fmt.Printf("base is now %v\n", comp.base)
+		if comp.debug {
+			fmt.Printf("base is now %v\n", comp.base)
+		}
 	default:
 		return 0, fmt.Errorf("Unknown opcode: %v", inst.opcode)
 	}
@@ -214,15 +253,21 @@ func (comp *Computer) getVal(argIndex int, inst *instruction) int64 {
 	var rval int64
 	if mode == 0 {
 		rval = comp.getValue(int(arg))
-		fmt.Printf("reference: get %v from %v\n", rval, arg)
+		if comp.debug {
+			fmt.Printf("reference: get %v from %v\n", rval, arg)
+		}
 	} else if mode == 1 {
 		rval = arg
-		fmt.Printf("get %v directly\n", rval)
+		if comp.debug {
+			fmt.Printf("get %v directly\n", rval)
+		}
 	} else if mode == 2 {
 		offset := int(arg)
 		index := offset + comp.base
 		rval = comp.getValue(index)
-		fmt.Printf("offset: get %v from %v\n", rval, index)
+		if comp.debug {
+			fmt.Printf("offset: get %v from %v\n", rval, index)
+		}
 	}
 	return rval
 }

@@ -8,7 +8,7 @@ import (
 func TestQuine(t *testing.T) {
 	data := []int64{109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99}
 	var io SliceIO
-	comp := NewComputer(data, &io, &io)
+	comp := NewComputer(data, &io, &io, true)
 	err := comp.Run()
 	if err != nil {
 		t.Fatalf("Error running program: %v", err)
@@ -21,7 +21,7 @@ func TestQuine(t *testing.T) {
 func TestLargeNum(t *testing.T) {
 	data := []int64{1102, 34915192, 34915192, 7, 4, 7, 99, 0}
 	var io SliceIO
-	comp := NewComputer(data, &io, &io)
+	comp := NewComputer(data, &io, &io, true)
 	err := comp.Run()
 	if err != nil {
 		t.Fatalf("Error running program: %v", err)
@@ -35,7 +35,7 @@ func TestLargeNum(t *testing.T) {
 func TestLargeWrite(t *testing.T) {
 	data := []int64{104, 1125899906842624, 99}
 	var io SliceIO
-	comp := NewComputer(data, &io, &io)
+	comp := NewComputer(data, &io, &io, true)
 	err := comp.Run()
 	if err != nil {
 		t.Fatalf("Error running program: %v", err)
@@ -60,7 +60,7 @@ func assertFull(t *testing.T, input, expected int64) {
 		t.Fatalf("Problem reading input: %v", err)
 	}
 	io := NewSliceIO([]int64{input})
-	comp := NewComputer(data, io, io)
+	comp := NewComputer(data, io, io, true)
 	err = comp.Run()
 	if err != nil {
 		t.Fatalf("Error running program: %v", err)
@@ -127,7 +127,7 @@ func TestPJumpNE(t *testing.T) {
 
 func assertRunData(t *testing.T, data, input, expected []int64) {
 	io := NewSliceIO(input)
-	comp := NewComputer(data, io, io)
+	comp := NewComputer(data, io, io, true)
 	err := comp.Run()
 	if err != nil {
 		t.Fatalf("Problem running data: %v", err)
