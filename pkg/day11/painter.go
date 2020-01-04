@@ -8,6 +8,7 @@ import (
 	"github.com/bclement/advent2019/pkg/day9"
 )
 
+// Direction indicates where the robot is facing
 type Direction int
 
 const (
@@ -32,6 +33,7 @@ func (dir Direction) String() string {
 	}
 }
 
+// Color indicates a color for a cell
 type Color int64
 
 const (
@@ -48,6 +50,7 @@ func (c Color) String() string {
 	return "invalid"
 }
 
+// Command tells the robot how to move next
 type Command int64
 
 const (
