@@ -101,40 +101,59 @@ type cell struct {
 	painted bool
 }
 
-type ioHarness struct {
+// IOHarness uses channels for intcomputer IO
+type IOHarness struct {
 	in, out chan int64
 }
 
-func newIoHarness() ioHarness {
+// NewIOHarness creates a new IOHarness object
+func NewIOHarness() IOHarness {
 	in := make(chan int64, 10)
 	out := make(chan int64, 10)
-	return ioHarness{in, out}
+	return IOHarness{in, out}
 }
 
-func (io ioHarness) Close() {
+// Close closes the IO harness
+func (io IOHarness) Close() {
 	close(io.in)
 	close(io.out)
 }
 
-func (io ioHarness) Read() (i int64, err error) {
+func (io IOHarness) Read() (i int64, err error) {
 	return <-io.in, nil
 }
 
-func (io ioHarness) Write(i int64) error {
+// SendInput sends the integer to the input channel
+func (io IOHarness) SendInput(i int64) {
+	io.in <- i
+}
+
+// Poll attempts to read from input. returns false if no input available
+func (io IOHarness) Poll() (int64, bool) {
+	select {
+	case i := <-io.in:
+		return i, true
+	default:
+		return 0, false
+	}
+}
+
+func (io IOHarness) Write(i int64) error {
 	io.out <- i
 	return nil
 }
 
-func (io ioHarness) waitForOutput(errc chan error) (Color, Command, bool, error) {
-	col, success, err := io.getOutput(errc)
+func (io IOHarness) waitForOutput(errc chan error) (Color, Command, bool, error) {
+	col, success, err := io.GetOutput(errc)
 	if !success {
 		return -1, -1, success, err
 	}
-	com, success, err := io.getOutput(errc)
+	com, success, err := io.GetOutput(errc)
 	return Color(col), Command(com), success, err
 }
 
-func (io ioHarness) getOutput(errc chan error) (int64, bool, error) {
+// GetOutput gets the next available output from the program
+func (io IOHarness) GetOutput(errc chan error) (int64, bool, error) {
 	select {
 	case value, ok := <-io.out:
 		if !ok {
@@ -153,13 +172,13 @@ func (io ioHarness) getOutput(errc chan error) (int64, bool, error) {
 type robot struct {
 	comp  *day9.Computer
 	cells map[point]*cell
-	io    ioHarness
+	io    IOHarness
 	loc   point
 	dir   Direction
 }
 
 func newRobot(data []int64) *robot {
-	io := newIoHarness()
+	io := NewIOHarness()
 	comp := day9.NewComputer(data, io, io, false)
 	cells := make(map[point]*cell)
 	return &robot{comp, cells, io, point{0, 0}, north}
